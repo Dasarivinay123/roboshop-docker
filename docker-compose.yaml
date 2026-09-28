@@ -2,34 +2,39 @@ name: roboshop
 services:
   mongodb:
     build: ./mongodb
-    image: joindevops/mongodb:v1 #docker build -t joindevops/mongodb:v1
-    container_name: mongodb #docker run -d --name mongodb --network roboshop joindevops/mongodb:v1
+    image: joindevops/mongodb:4.0.0 # docker build -t joindevops/mongodb:4.0.0
+    container_name: mongodb # docker run -d --network roboshop joindevops/mongodb:4.0.0
+    volumes:
+    - mongodb:/data/db # mongodb stores data in /data/db directory
   catalogue:
     build: ./catalogue
-    image: joindevops/catalogue:v1
+    image: joindevops/catalogue:4.0.0
     container_name: catalogue
     depends_on:
-      - mongodb
+    - mongodb
   frontend:
     build: ./frontend
-    image: joindevops/frontend:v1
+    image: joindevops/frontend:4.0.0
     container_name: frontend
     ports:
-      - 80:80
+    - "80:80"
     depends_on:
-      - catalogue
-      - user
-      - cart
+    - catalogue
+    - user
+    - cart
+    - shipping
+    - payment
   user:
     build: ./user
-    image: joindevops/user:v1
+    image: joindevops/user:4.0.0
     container_name: user
     environment:
-      REDIS_URL: "redis://redis:6379"
+      MONGO: true
+      REDIS_URL: 'redis://redis:6379'
       MONGO_URL: "mongodb://mongodb:27017/users"
     depends_on:
-      - redis
-      - mongodb
+    - redis
+    - mongodb
   cart:
     build: ./cart
     image: joindevops/cart:4.0.0
@@ -39,8 +44,8 @@ services:
       CATALOGUE_HOST: catalogue
       CATALOGUE_PORT: 8080
     depends_on:
-      - redis
-      - catalogue
+    - redis
+    - catalogue
   shipping:
     build: ./shipping
     image: joindevops/shipping:4.0.0
@@ -49,9 +54,8 @@ services:
       CART_ENDPOINT: "cart:8080"
       DB_HOST: mysql
     depends_on:
-      - mysql
-      - cart
-
+    - mysql
+    - cart
   payment:
     build: ./payment
     image: joindevops/payment:4.0.0
@@ -70,7 +74,9 @@ services:
     - rabbitmq
   redis:
     image: redis:7
-    container_name: redis
+    container_name: redis # docker run -d --name redis --network roboshop redis:7
+    volumes:
+    - redis:/data
   mysql:
     image: joindevops/mysql:4.0.0
     build: ./mysql
@@ -78,6 +84,8 @@ services:
     command: --mysql-native-password=ON --innodb-lock_wait_timeout=120
     environment:
       MYSQL_ROOT_PASSWORD: "RoboShop@1"
+    volumes:
+    - mysql:/var/lib/mysql
   rabbitmq:
     image: rabbitmq:3
     container_name: rabbitmq
@@ -85,9 +93,14 @@ services:
       RABBITMQ_DEFAULT_USER: roboshop
       RABBITMQ_DEFAULT_PASS: roboshop123
     volumes:
-      - rabbitmq:/var/lib/rabbitmq
+    - rabbitmq:/var/lib/rabbitmq
 networks:
-  default:
+  default: # this means all the services in this file use this network
     name: roboshop
     driver: bridge
-    external: false #if true it should created manually, if false docker creates this network
+    external: false # if true it should be created manually, if false docker creates this network
+volumes:
+  mongodb: # docker volume create mongodb
+  redis: # docker volume create redis
+  mysql: # docker volume create mysql
+  rabbitmq: # docker volume create rabbitmq
